@@ -42,7 +42,8 @@ class CDKTest:
     ):
         """Set cdk app folder to operate on and optional base directory."""
         self._basedir = basedir or os.getcwd()
-        self.binary = binary
+        # e.g. "npx cdk"
+        self.binary = binary.split(" ")
         self.appdir = (
             appdir if Path(appdir).is_absolute() else Path(self._basedir) / appdir
         )
@@ -168,14 +169,15 @@ class CDKTest:
 
     def synthesize(self) -> str:
         """Run cdk synthesize command."""
-        # check if cdk.json exists
-        dir_iter = sorted(Path(self.appdir).iterdir(), key=lambda p: str(p).lower())
-        cmd_args = ["-a", '"python3 app.py"']
-        for path in dir_iter:
-            if path.is_file() and path.name == "cdk.json":
-                cmd_args = []
-                break
-        return self.execute_command("synthesize", *cmd_args).out
+        cmd_args = ["--json"]  # output json template
+        file_list = [item.name for item in Path(self.appdir).glob("*")]
+        if "cdk.json" in file_list:
+            pass
+        elif "app.py" in file_list:
+            cmd_args.extend(["-a" '"python app.py"'])
+        else:
+            raise CDKTestError("Could not find app entry point")
+        return self.execute_command("synth", *cmd_args).out
 
     def deploy(self) -> str:
         """Run cdk deploy command."""
@@ -188,10 +190,10 @@ class CDKTest:
     def execute_command(self, cmd: str, *cmd_args) -> None:
         """Run arbitrary CDK command."""
         _LOGGER.debug([cmd, cmd_args])
-        cmdline = [self.binary, cmd]
+        self.binary.append(cmd)
+        cmdline = self.binary
         cmdline.extend(cmd_args)
-        _LOGGER.info(" ".join(cmdline))
-        _LOGGER.info(self.appdir)
+        _LOGGER.info(cmdline)
         retcode, full_output_lines = None, []
         try:
             stderr_mode = subprocess.STDOUT if os.name == "nt" else subprocess.PIPE
@@ -199,7 +201,6 @@ class CDKTest:
                 cmdline,
                 stdout=subprocess.PIPE,
                 stderr=stderr_mode,
-                shell=True,  # need this in nixshell
                 cwd=self.appdir,
                 env=self.env,
                 universal_newlines=True,
@@ -223,5 +224,4 @@ class CDKTest:
             message = f"Error running command {cmd}: {retcode} {full_output} {err}"
             _LOGGER.critical(message)
             raise CDKTestError(message, err)
-        print(full_output)
         return CDKCommandOutput(retcode, full_output, err)

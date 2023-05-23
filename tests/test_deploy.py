@@ -2,13 +2,15 @@
 
 import pytest
 import cdktest
+import json
 
 
 @pytest.fixture
 def output(fixtures_dir):
     cdk = cdktest.CDKTest("custom", fixtures_dir, binary="npx cdk")
-    yield cdk.synthesize()
+    return cdk.synthesize()
 
 
 def test_apply(output):
-    print("test")
+    res = json.loads(output)
+    print(res.keys())
