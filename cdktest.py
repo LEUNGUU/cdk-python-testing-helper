@@ -20,8 +20,25 @@ class CDKTestError(Exception):
     pass
 
 
-def parse_args():
-    pass
+def parse_args(cmd: str, appdir: str) -> List[str]:
+    cmd_args = ["--no-color", "--json"]
+    file_list = [item.name for item in Path(appdir).glob("*")]
+    match cmd:
+        case "deploy":
+            cmd_args.extend(["--require-approval", "never"])
+        case "destroy":
+            cmd_args.append("--force")
+        case _:
+            raise CDKTestError('Only accept "deploy" and "destroy"')
+    if "cdk.out" in file_list:
+        cmd_args.extend(["-a", "cdk.out"])
+    elif "cdk.json" in file_list:
+        pass
+    elif "app.py" in file_list:
+        cmd_args.extend(["-a", '"python app.py"'])
+    else:
+        raise CDKTestError("Could not find app entry point")
+    return cmd_args
 
 
 class CDKTest:
@@ -169,23 +186,18 @@ class CDKTest:
 
     def synthesize(self) -> str:
         """Run cdk synthesize command."""
-        cmd_args = ["--json"]  # output json template
-        file_list = [item.name for item in Path(self.appdir).glob("*")]
-        if "cdk.json" in file_list:
-            pass
-        elif "app.py" in file_list:
-            cmd_args.extend(["-a" '"python app.py"'])
-        else:
-            raise CDKTestError("Could not find app entry point")
+        cmd_args = parse_args("synth", self.appdir)
         return self.execute_command("synth", *cmd_args).out
 
     def deploy(self) -> str:
         """Run cdk deploy command."""
-        return self.execute_command("deploy").out
+        cmd_args = parse_args("deploy", self.appdir)
+        return self.execute_command("deploy", *cmd_args).out
 
     def destroy(self) -> str:
         """Run cdk destroy command."""
-        return self.execute_command("destroy").out
+        cmd_args = parse_args("destroy", self.appdir)
+        return self.execute_command("destroy", *cmd_args).out
 
     def execute_command(self, cmd: str, *cmd_args) -> None:
         """Run arbitrary CDK command."""

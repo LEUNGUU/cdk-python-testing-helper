@@ -8,9 +8,8 @@ import json
 @pytest.fixture
 def output(fixtures_dir):
     cdk = cdktest.CDKTest("custom", fixtures_dir, binary="npx cdk")
-    return cdk.synthesize()
+    return cdk.deploy()
 
 
 def test_apply(output):
-    res = json.loads(output)
-    print(res.keys())
+    print(output)
