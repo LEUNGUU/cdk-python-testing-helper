@@ -271,7 +271,9 @@ class CDKTest:
                 try:
                     f = cache_key.open("wb")
                 except OSError as e:
-                    _LOGGER.error("Cache could not be written to path")
+                    _LOGGER.error(
+                        f"Cache could not be written to path due to: {str(e)}"
+                    )
                 else:
                     with f:
                         pickle.dump(out, f, pickle.HIGHEST_PROTOCOL)
