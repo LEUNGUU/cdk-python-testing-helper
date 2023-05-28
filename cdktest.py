@@ -5,10 +5,10 @@ import inspect
 import subprocess
 import pickle
 
-from typing import Dict, List
+from typing import Dict, List, Any
 from pathlib import Path
 from hashlib import sha1
-from collections import namedtuple
+from collections import namedtuple, abc
 
 
 _LOGGER = logging.getLogger("cdktest")
@@ -17,19 +17,30 @@ CDKCommandOutput = namedtuple("CDKCommandOutput", "retcode out err")
 
 
 class CDKTestError(Exception):
+    "Customize Exception class"
     pass
 
 
 def parse_args(cmd: str, appdir: str) -> List[str]:
+    """Check cdk files and add arguments for use in CDK commands.
+
+    Args:
+      cmd: CDK subcommand name. It could be either synth, deploy or destroy
+      appdir: The path to cdk folder.
+
+    Returns:
+      A list of command arguments for use with subprocess
+    """
     cmd_args = ["--no-color", "--json"]
     file_list = [item.name for item in Path(appdir).glob("*")]
-    match cmd:
-        case "deploy":
-            cmd_args.extend(["--require-approval", "never"])
-        case "destroy":
-            cmd_args.append("--force")
-        case _:
-            raise CDKTestError('Only accept "deploy" and "destroy"')
+    if cmd != "synth":
+        match cmd:
+            case "deploy":
+                cmd_args.extend(["--require-approval", "never"])
+            case "destroy":
+                cmd_args.append("--force")
+            case _:
+                raise CDKTestError('Only accept "deploy" and "destroy"')
     if "cdk.out" in file_list:
         cmd_args.extend(["-a", "cdk.out"])
     elif "cdk.json" in file_list:
@@ -41,11 +52,61 @@ def parse_args(cmd: str, appdir: str) -> List[str]:
     return cmd_args
 
 
+class CFTemplateJSONBase(abc.Mapping):
+    "Base class for JSON wrappers."
+
+    def __init__(self, raw):
+        self._raw = raw
+
+    def __bytes__(self):
+        return bytes(self._raw)
+
+    def __getitem__(self, index):
+        return self._raw[index]
+
+    def __iter__(self):
+        return iter(self._raw)
+
+    def __len__(self):
+        return len(self._raw)
+
+    def __str__(self):
+        return str(self._raw)
+
+
+class CFTemplateResources(CFTemplateJSONBase):
+    "Minimal wrapper for parsed cf template resources."
+
+    def __init__(self, raw):
+        super(CFTemplateResources, self).__init__(raw)
+        self.all_resources = self._raw.get("Resources")
+        self._resources = None
+
+    @property
+    def resources(self):
+        if self._resources is None:
+            resources = {item["Type"]: [] for item in self.all_resources.values()}
+            for _, v in self.all_resources.items():
+                resources[v["Type"]].append(v["Properties"])
+            self._resources = resources
+        return self._resources
+
+
 class CDKTest:
     """Helper class for use in testing CDK stacks.
 
-    This helper class can be used to set up fixtures in CDK tests.
+    This helper class can be used to set up fixtures in CDK tests, so that the
+    usual CDK commands (synth, deploy, destroy) can be run on an cdk app.
 
+    Args:
+      appdir: The CDK app directory to test, either an absolute path, or relative to basedir.
+      basedir: Optional base directory to use for relative paths, defaults to the
+        directory above the one the cdk app lives in.
+      binary: Path to cdk command.
+      env: A dict wiith custom environment variables to pass to cdk.
+      enable_cache: Determines if caching enabled for specific methods.
+      cache_dir: Optional base directory to use for caching, defaults to
+        the directory of the python file that instantiates this class
     """
 
     def __init__(
@@ -62,10 +123,13 @@ class CDKTest:
         # e.g. "npx cdk"
         self.binary = binary.split(" ")
         self.appdir = (
-            appdir if Path(appdir).is_absolute() else Path(self._basedir) / appdir
+            appdir
+            if Path(appdir).is_absolute()
+            else os.path.join(self._basedir, appdir)
         )
         self.env = os.environ.copy()
         self.enable_cache = enable_cache
+        self._template_formatter = lambda out: CFTemplateResources(json.loads(out))
         if not cache_dir:
             self.cache_dir = (
                 Path(os.path.dirname(inspect.stack()[1].filename)) / ".cdktest-cache"
@@ -139,7 +203,8 @@ class CDKTest:
             """
             _LOGGER.info(f"Cache decorated method: {func.__name__}")
 
-            if not self.enable_cache or not kwargs.get("use_cache", False):
+            if self.enable_cache or kwargs.get("use_cache", False):
+                print("false cache")
                 return func(self, **kwargs)
 
             cache_dir = (
@@ -180,20 +245,20 @@ class CDKTest:
 
         return cache
 
-    def setup(self) -> str:
-        """Run cdk bootstrap command."""
-        return self.execute_command("bootstrap").out
-
-    def synthesize(self) -> str:
+    @_cache
+    def synthesize(self) -> Dict[str, Any]:
         """Run cdk synthesize command."""
         cmd_args = parse_args("synth", self.appdir)
-        return self.execute_command("synth", *cmd_args).out
+        output = self.execute_command("synth", *cmd_args).out
+        return self._template_formatter(output)
 
+    @_cache
     def deploy(self) -> str:
         """Run cdk deploy command."""
         cmd_args = parse_args("deploy", self.appdir)
         return self.execute_command("deploy", *cmd_args).out
 
+    @_cache
     def destroy(self) -> str:
         """Run cdk destroy command."""
         cmd_args = parse_args("destroy", self.appdir)
@@ -224,7 +289,6 @@ class CDKTest:
                 if output == "" and p.poll() is not None:
                     break
                 if output:
-                    _LOGGER.info(output.strip())
                     full_output_lines.append(output)
             retcode = p.poll()
             p.wait()

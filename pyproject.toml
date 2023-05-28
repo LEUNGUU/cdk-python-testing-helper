@@ -5,3 +5,4 @@ target-version = ['py310']
 [tool.pytest.ini_options]
 addopts = "-vv -s"
 log_cli_level = "debug"
+markers = ["test_deploy: Test deploy", "test_synth: Test synth"]

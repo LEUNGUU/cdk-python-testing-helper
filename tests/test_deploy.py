@@ -1,8 +1,10 @@
-"Test setup and apply using an actual example."
+"Test deploy using an actual example."
 
 import pytest
 import cdktest
 import json
+
+pytestmark = pytest.mark.test_deploy
 
 
 @pytest.fixture
