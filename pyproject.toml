@@ -1,3 +1,26 @@
+[project]
+name = "cdktest"
+description = "Simple python test helper for AWS CDK"
+authors = [{ name = "leunguu", email = "liangy3928@gmail.com" }]
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+readme = "README.md"
+keywords = ["CDK", "AWS", "Python", "Test", "Helper"]
+dependencies = ["aws-cdk-lib>=2.1.0, <3.0.0", "constructs>=10.0.5, <11.0.0"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dynamic = ["version"]
+
+
+[project.urls]
+homepage = "https://github.com/LEUNGUU/cdk-python-testing-helper"
+repository = "https://github.com/LEUNGUU/cdk-python-testing-helper"
+
 [tool.black]
 line-length = 88
 target-version = ['py310']
@@ -6,3 +29,10 @@ target-version = ['py310']
 addopts = "-vv -s"
 log_cli_level = "debug"
 markers = ["test_deploy: Test deploy", "test_synth: Test synth"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "cdktest.__version__" }
