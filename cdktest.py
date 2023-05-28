@@ -4,6 +4,8 @@ import logging
 import inspect
 import subprocess
 import pickle
+import weakref
+import shutil
 
 from typing import Dict, List, Any
 from pathlib import Path
@@ -139,6 +141,34 @@ class CDKTest:
         if env:
             self.env.update(env)
 
+        # cleanup when instance deletion
+        self._finalizer = weakref.finalize(
+            self, self._cleanup, self.appdir, self.cache_dir
+        )
+
+    @classmethod
+    def _cleanup(
+        cls,
+        appdir: str,
+        cache_dir: str,
+        deep: bool = True,
+        restore_files: bool = False,
+    ) -> None:
+        """Remove linked files, cdk.out and/or .cdktest-cache folder at instance deletion."""
+
+        def remove_readonly(func, path, execinfo):
+            _LOGGER.warning(f"Issue deleting file {path}, caused by {execinfo}")
+            Path(path).chmod(stat.S_IWRITE)
+            func(path)
+
+        # Default output folder is "cdk.out"
+        _LOGGER.debug("cleaning up %s %s", appdir, "cdk.out")
+        cdkout = os.path.join(appdir, "cdk.out")
+        if Path(cdkout).is_dir():
+            shutil.rmtree(cdkout, onerror=remove_readonly)
+        if Path(cache_dir).is_dir():
+            shutil.rmtree(cache_dir, onerror=remove_readonly)
+
     def _dirhash(
         self,
         directory: str,
@@ -203,10 +233,11 @@ class CDKTest:
             """
             _LOGGER.info(f"Cache decorated method: {func.__name__}")
 
-            if self.enable_cache or kwargs.get("use_cache", False):
+            if not self.enable_cache or kwargs.get("use_cache", False):
                 print("false cache")
                 return func(self, **kwargs)
 
+            print("using cache")
             cache_dir = (
                 self.cache_dir
                 / Path(sha1(self.appdir.encode("cp037")).hexdigest())
@@ -241,6 +272,7 @@ class CDKTest:
                 else:
                     with f:
                         pickle.dump(out, f, pickle.HIGHEST_PROTOCOL)
+            print("using cache")
             return out
 
         return cache
