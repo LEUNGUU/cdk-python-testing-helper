@@ -6,6 +6,7 @@ import subprocess
 import pickle
 import weakref
 import shutil
+import stat
 
 from typing import Dict, List, Any
 from pathlib import Path
