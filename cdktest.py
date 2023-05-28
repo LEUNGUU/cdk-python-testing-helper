@@ -13,6 +13,8 @@ from hashlib import sha1
 from collections import namedtuple, abc
 
 
+__version__ = "0.0.1"
+
 _LOGGER = logging.getLogger("cdktest")
 
 CDKCommandOutput = namedtuple("CDKCommandOutput", "retcode out err")
