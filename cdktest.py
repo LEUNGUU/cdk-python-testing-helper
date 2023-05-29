@@ -1,3 +1,8 @@
+"""Simple Python wrapper for AWS CDK test fixtures.
+
+See documentation in the CDKTest class for usage. CDK wrapping
+inspired by https://github.com/GoogleCloudPlatform/terraform-python-testing-helper.git
+"""
 import os
 import json
 import logging
@@ -83,7 +88,7 @@ class CFTemplateResources(CFTemplateJSONBase):
     "Minimal wrapper for parsed cf template resources."
 
     def __init__(self, raw):
-        super(CFTemplateResources, self).__init__(raw)
+        super().__init__(raw)
         self.all_resources = self._raw.get("Resources")
         self._resources = None
 
@@ -104,7 +109,8 @@ class CDKTest:
     usual CDK commands (synth, deploy, destroy) can be run on an cdk app.
 
     Args:
-      appdir: The CDK app directory to test, either an absolute path, or relative to basedir.
+      appdir: The CDK app directory to test, either an absolute path, or relative
+        to basedir.
       basedir: Optional base directory to use for relative paths, defaults to the
         directory above the one the cdk app lives in.
       binary: Path to cdk command.
@@ -154,10 +160,8 @@ class CDKTest:
         cls,
         appdir: str,
         cache_dir: str,
-        deep: bool = True,
-        restore_files: bool = False,
     ) -> None:
-        """Remove linked files, cdk.out and/or .cdktest-cache folder at instance deletion."""
+        """Remove cdk.out and/or .cdktest-cache folder at instance deletion."""
 
         def remove_readonly(func, path, execinfo):
             _LOGGER.warning(f"Issue deleting file {path}, caused by {execinfo}")
@@ -175,10 +179,10 @@ class CDKTest:
     def _dirhash(
         self,
         directory: str,
-        hash,
+        hash: Any,
         ignore_hidden: bool = True,
-        exclude_directories: List[str] = [],
-        excluded_extensions: List[str] = [],
+        exclude_directories: List[str] = None,
+        excluded_extensions: List[str] = None,
     ):
         """Returns hash of directory's file contents"""
         assert Path(directory).is_dir()
@@ -190,12 +194,16 @@ class CDKTest:
             if path.is_file():
                 if ignore_hidden and path.name.startswith("."):
                     continue
-                if path.suffix in excluded_extensions:
+                if excluded_extensions and path.suffix in excluded_extensions:
                     continue
-                with open(path, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
+                with open(path, "rb") as fp:
+                    for chunk in iter(lambda: fp.read(4096), b""):
                         hash.update(chunk)
-            if path.is_dir() and path.name not in exclude_directories:
+            if (
+                exclude_directories
+                and path.is_dir()
+                and path.name not in exclude_directories
+            ):
                 hash = self._dirhash(
                     path,
                     hash,
@@ -234,10 +242,9 @@ class CDKTest:
             Returns:
                 Output of the cdktest instance method
             """
-            _LOGGER.info(f"Cache decorated method: {func.__name__}")
+            _LOGGER.info("Cache decorated method: %s", func.__name__)
 
             if not self.enable_cache or kwargs.get("use_cache", False):
-                print("false cache")
                 return func(self, **kwargs)
 
             print("using cache")
@@ -272,7 +279,7 @@ class CDKTest:
                     f = cache_key.open("wb")
                 except OSError as e:
                     _LOGGER.error(
-                        f"Cache could not be written to path due to: {str(e)}"
+                        "Cache could not be written to path due to: %s", str(e)
                     )
                 else:
                     with f:
@@ -330,8 +337,8 @@ class CDKTest:
             retcode = p.poll()
             p.wait()
         except FileNotFoundError as e:
-            raise CDKTestError(f"CDK executable not found: {e}")
-        out, err = p.communicate()
+            raise CDKTestError(f"CDK executable not found: {e}") from e
+        _, err = p.communicate()
         full_output = "".join(full_output_lines)
         if retcode in [1, 11]:
             message = f"Error running command {cmd}: {retcode} {full_output} {err}"
