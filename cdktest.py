@@ -51,7 +51,7 @@ def parse_args(cmd: str, appdir: str) -> List[str]:
                 cmd_args.append("--force")
             case _:
                 raise CDKTestError('Only accept "deploy" and "destroy"')
-    if "cdk.out" in file_list:
+    if "cdk.out" in file_list and cmd != "synth":
         cmd_args.extend(["-a", "cdk.out"])
     elif "cdk.json" in file_list:
         pass
@@ -213,18 +213,18 @@ class CDKTest:
                 )
         return hash
 
-    def generate_cache_hash(self) -> str:
+    def generate_cache_hash(self, method_kwargs) -> str:
         """Returns a hash value using the instance attributes"""
         params = {
             **{
                 k: v
                 for k, v in self.__dict__.items()
-                if k in ["binary", "_basedir", "appdir", "_env"]
+                if k in ["binary", "_basedir", "appdir", "env"]
             }
         }
         params["appdir"] = self._dirhash(
             self.appdir, sha1(), ignore_hidden=True, exclude_directories=["cdk.out"]
-        )
+        ).hexdigest()
         return (
             sha1(
                 json.dumps(params, sort_keys=True, default=str).encode("cp037")
@@ -244,17 +244,16 @@ class CDKTest:
             """
             _LOGGER.info("Cache decorated method: %s", func.__name__)
 
-            if not self.enable_cache or kwargs.get("use_cache", False):
+            if not self.enable_cache or not kwargs.get("use_cache", False):
                 return func(self, **kwargs)
 
-            print("using cache")
             cache_dir = (
                 self.cache_dir
                 / Path(sha1(self.appdir.encode("cp037")).hexdigest())
                 / Path(func.__name__)
             )
             cache_dir.mkdir(parents=True, exist_ok=True)
-            hash_filename = self.generate_cache_hash()
+            hash_filename = self.generate_cache_hash(kwargs)
             cache_key = cache_dir / hash_filename
             _LOGGER.debug("Cache key: %s", cache_key)
 
@@ -270,7 +269,8 @@ class CDKTest:
             out = func(self, **kwargs)
 
             if out:
-                hash_filename = self.generate_cache_hash()
+                _LOGGER.info("command output is %s", out)
+                hash_filename = self.generate_cache_hash(kwargs)
                 cache_key = cache_dir / hash_filename
                 _LOGGER.debug("Cache key: %s", cache_key)
 
@@ -284,37 +284,38 @@ class CDKTest:
                 else:
                     with f:
                         pickle.dump(out, f, pickle.HIGHEST_PROTOCOL)
-            print("using cache")
             return out
 
         return cache
 
     @_cache
-    def synthesize(self) -> Dict[str, Any]:
+    def synthesize(self, use_cache: bool = False) -> Dict[str, Any]:
         """Run cdk synthesize command."""
         cmd_args = parse_args("synth", self.appdir)
         output = self.execute_command("synth", *cmd_args).out
         return self._template_formatter(output)
 
     @_cache
-    def deploy(self) -> str:
+    def deploy(self, use_cache: bool = False) -> str:
         """Run cdk deploy command."""
         cmd_args = parse_args("deploy", self.appdir)
         return self.execute_command("deploy", *cmd_args).out
 
-    @_cache
     def destroy(self) -> str:
-        """Run cdk destroy command."""
+        """Run cdk destroy command.
+        No need to make cache here since command 'cdk destroy'
+        does not output anything
+        """
         cmd_args = parse_args("destroy", self.appdir)
         return self.execute_command("destroy", *cmd_args).out
 
     def execute_command(self, cmd: str, *cmd_args) -> None:
         """Run arbitrary CDK command."""
         _LOGGER.debug([cmd, cmd_args])
-        self.binary.append(cmd)
-        cmdline = self.binary
+        cmdline = [item for item in self.binary]
+        cmdline.append(cmd)
         cmdline.extend(cmd_args)
-        _LOGGER.info(cmdline)
+        _LOGGER.info("".join(cmdline))
         retcode, full_output_lines = None, []
         try:
             stderr_mode = subprocess.STDOUT if os.name == "nt" else subprocess.PIPE
