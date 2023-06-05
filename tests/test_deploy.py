@@ -11,7 +11,7 @@ pytestmark = pytest.mark.test_deploy
 iam_client = boto3.client("iam")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def output(fixtures_dir):
     cdk = cdktest.CDKTest("iam", fixtures_dir, binary="npx cdk")
     cdk.deploy()
@@ -19,7 +19,7 @@ def output(fixtures_dir):
     cdk.destroy()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def iam_role(output):
     try:
         role = iam_client.get_role(
@@ -32,7 +32,7 @@ def iam_role(output):
     return role["Role"]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def output_role(output):
     return output.resources["AWS::IAM::Role"][0]
 
