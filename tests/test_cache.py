@@ -7,6 +7,7 @@ import logging
 import shutil
 import os
 import uuid
+import time
 from unittest.mock import patch
 
 
@@ -16,10 +17,9 @@ pytestmark = pytest.mark.test_cache
 _LOGGER = logging.getLogger("cdktest")
 
 cache_methods = ["synthesize", "deploy"]
-no_cache_method = "destroy"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def cdk(request, fixtures_dir):
     cdk = cdktest.CDKTest(
         appdir="no_change",
@@ -31,7 +31,6 @@ def cdk(request, fixtures_dir):
 
     _LOGGER.debug("Removing cache dir")
     try:
-        cdk.destroy()
         shutil.rmtree(cdk.cache_dir)
     except FileNotFoundError:
         _LOGGER.debug("%s does not exists", cdk.cache_dir)
@@ -80,9 +79,7 @@ def test_use_cache_with_new_env(cdk):
             for _ in range(expected_call_count):
                 getattr(cdk, method)(use_cache=True)
                 cdk.env["foo"] = "bar"
-
             assert mock_execute_command.call_count == expected_call_count
-
             del cdk.env["foo"]
 
 

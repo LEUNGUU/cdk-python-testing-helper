@@ -315,7 +315,6 @@ class CDKTest:
         cmdline = [item for item in self.binary]
         cmdline.append(cmd)
         cmdline.extend(cmd_args)
-        _LOGGER.info("".join(cmdline))
         retcode, full_output_lines = None, []
         try:
             stderr_mode = subprocess.STDOUT if os.name == "nt" else subprocess.PIPE
