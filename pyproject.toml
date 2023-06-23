@@ -9,9 +9,9 @@ keywords = ["CDK", "AWS", "Python", "Test", "Helper"]
 dependencies = ["aws-cdk-lib>=2.1.0, <3.0.0", "constructs>=10.0.5, <11.0.0"]
 
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 
 dynamic = ["version"]
@@ -24,14 +24,30 @@ repository = "https://github.com/LEUNGUU/cdk-python-testing-helper"
 [tool.black]
 line-length = 88
 target-version = ['py310']
+include = '\.pyi?$'
+exclude = '''
+black formatter
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
 
 [tool.pytest.ini_options]
 addopts = "-vv -s"
 log_cli_level = "debug"
 markers = [
-    "test_deploy: Test deploy",
-    "test_synth: Test synth",
-    "test_cache: Test cache",
+  "test_deploy: Test deploy",
+  "test_synth: Test synth",
+  "test_cache: Test cache",
 ]
 
 [build-system]
@@ -40,3 +56,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
 version = { attr = "cdktest.__version__" }
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.0.0"
+version_files = ["pyproject.toml:version"]
