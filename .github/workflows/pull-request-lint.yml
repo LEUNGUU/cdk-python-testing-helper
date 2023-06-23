@@ -24,6 +24,7 @@ jobs:
             fix
             chore
             docs
+            style
             test
             refactor
             build
