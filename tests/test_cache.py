@@ -7,7 +7,6 @@ import logging
 import shutil
 import os
 import uuid
-import time
 from unittest.mock import patch
 
 
