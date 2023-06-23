@@ -3,8 +3,9 @@
 <p align="center">
 <img alt="Python Version" src="https://img.shields.io/badge/python-3.10%20|%203.11-blue">
 <img alt="GitHub Workflow Status (with branch)" src="https://img.shields.io/github/actions/workflow/status/leunguu/cdk-python-testing-helper/tests.yml?branch=main">
+<img alt="Commitizen friendly" src="https://img.shields.io/badge/commitizen-friendly-brightgreen.svg">
 <img alt="GitHub" src="https://img.shields.io/github/license/leunguu/cdk-python-testing-helper">
-<img alt="PyPI" src="https://img.shields.io/pypi/v/cdk-python-testing-helper">
+<img alt="PyPI" src="https://img.shields.io/pypi/v/cdktest">
 <img alt="PRs Welcome" src=https://img.shields.io/badge/PRs-welcome-brightgreen.svg>
 </p>
 
