@@ -167,3 +167,4 @@ package.json
 flake.nix
 flake.lock
 .envrc
+.direnv/

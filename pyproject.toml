@@ -34,6 +34,7 @@ black formatter
   | \.mypy_cache
   | \.tox
   | \.venv
+  | \.env
   | _build
   | buck-out
   | build
@@ -61,3 +62,21 @@ version = { attr = "cdktest.__version__" }
 name = "cz_conventional_commits"
 version = "0.1.0"
 version_files = ["pyproject.toml:version"]
+
+[tool.pyright]
+include = ["cdktest.py"]
+exclude = [
+  "**/node_modules",
+  "**/__pycache__",
+  ".env"
+]
+defineConstant = { DEBUG = true }
+stubPath = "src/stubs"
+venv = ".env"
+venvPath = "."
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
